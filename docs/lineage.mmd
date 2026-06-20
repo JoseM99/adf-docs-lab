@@ -1,0 +1,45 @@
+graph LR
+    subgraph Origen[ventas_oltp]
+        C[ sales.categories ]
+        P[ sales.products ]
+        CU[ sales.customers ]
+        O[ sales.orders ]
+        I[ sales.order_items ]
+    end
+
+    subgraph Staging[ventas_dw / stg]
+        SC[ stg.categories ]
+        SP[ stg.products ]
+        SCU[ stg.customers ]
+        SO[ stg.orders ]
+        SI[ stg.order_items ]
+    end
+
+    subgraph Dimensiones[DW - dimensiones]
+        DDate[ dw.dim_date ]
+        DCustomer[ dw.dim_customer ]
+        DProduct[ dw.dim_product ]
+    end
+
+    subgraph Hechos[DW - hechos]
+        F[ dw.fact_sales ]
+    end
+
+    C --> SC
+    P --> SP
+    CU --> SCU
+    O --> SO
+    I --> SI
+
+    SCU --> DCustomer
+    SP --> DProduct
+    SC --> DProduct
+    SI --> F
+    SO --> F
+    DCustomer --> F
+    DProduct --> F
+    DDate --> F
+
+    %% Dependencias adicionales de contexto
+    P -.-> SC
+    O -.-> DDate
