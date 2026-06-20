@@ -1,0 +1,15 @@
+{
+	"name": "adfdevdocu",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "westus2",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "cc4f088f-b79c-46ba-8fc5-31d7fd05564c",
+		"tenantId": "23d0390a-cf39-4c45-ba28-61111a778044"
+	}
+}

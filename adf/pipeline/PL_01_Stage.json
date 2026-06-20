@@ -1,0 +1,256 @@
+{
+	"name": "PL_01_Stage",
+	"properties": {
+		"activities": [
+			{
+				"name": "LKP_Config",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "SP_Log_Start",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "SELECT source_schema, source_table, sink_schema, sink_table\n    FROM etl.copy_config WHERE is_active = 1 ORDER BY load_order",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "DS_SQL_DW",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_schema": "etl",
+							"p_table": "copy_config"
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "FE_Tables",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "LKP_Config",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('LKP_Config').output.value",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "CP_Dynamic",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "AzureSqlSink",
+									"preCopyScript": {
+										"value": "@concat('TRUNCATE TABLE ', item().sink_schema, '.', item().sink_table)",
+										"type": "Expression"
+									},
+									"writeBehavior": "insert",
+									"sqlWriterUseTableLock": false,
+									"disableMetricsCollection": false
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "DS_SQL_OLTP",
+									"type": "DatasetReference",
+									"parameters": {
+										"p_schema": "@item().source_schema",
+										"p_table": {
+											"value": "@item().source_table",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "DS_SQL_DW",
+									"type": "DatasetReference",
+									"parameters": {
+										"p_schema": {
+											"value": "@item().sink_schema",
+											"type": "Expression"
+										},
+										"p_table": "@item().sink_table"
+									}
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"name": "SP_Log_Start",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dw].[usp_log_start]",
+					"storedProcedureParameters": {
+						"run_id": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipeline_name": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "LS_SQL_DW",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "SP_Log_Success",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "FE_Tables",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dw].[usp_log_end]",
+					"storedProcedureParameters": {
+						"rows_copied": {
+							"value": {
+								"value": "@null",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"run_id": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"status": {
+							"value": "SUCCESS",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "LS_SQL_DW",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "SP_Log_Failure",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "FE_Tables",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dw].[usp_log_end]",
+					"storedProcedureParameters": {
+						"run_id": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"status": {
+							"value": "FAILED",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "LS_SQL_DW",
+					"type": "LinkedServiceReference"
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2026-06-20T18:41:32Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

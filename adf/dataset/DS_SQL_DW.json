@@ -1,0 +1,31 @@
+{
+	"name": "DS_SQL_DW",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_SQL_DW",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"p_schema": {
+				"type": "string"
+			},
+			"p_table": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": {
+				"value": "@dataset().p_schema",
+				"type": "Expression"
+			},
+			"table": {
+				"value": "@dataset().p_table",
+				"type": "Expression"
+			}
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}
